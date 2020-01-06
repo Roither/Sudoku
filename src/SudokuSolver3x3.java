@@ -5,7 +5,7 @@ import org.sat4j.specs.IProblem;
 import org.sat4j.specs.ISolver;
 import org.sat4j.specs.TimeoutException;
 
-public class main {
+public class SudokuSolver3x3 {
     public static ISolver solver;
 
     public static void main(String[] args) {
