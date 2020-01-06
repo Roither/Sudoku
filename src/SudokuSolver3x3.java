@@ -6,97 +6,126 @@ import org.sat4j.specs.ISolver;
 import org.sat4j.specs.TimeoutException;
 
 public class SudokuSolver3x3 {
-    public static ISolver solver;
+    public static ISolver solver = SolverFactory.newDefault();
 
     public static void main(String[] args) {
-        solver = SolverFactory.newDefault();
+
+        solver.setTimeout(3600);
         solver.newVar(1000);
+        solver.setExpectedNumberOfClauses(500);
 
-        for (int zeile = 1; zeile <= 9; zeile++) {
-            for (int spalte = 1; spalte <= 9; spalte++) {
+        // Klausel = int[] {5, 6, -7} ==> 5 or 6 or not 7 is right
+        // 0 Kann nicht verwendet werden ==> +-0 == 0
+
+        // Zeile
+        for (int i = 1; i <= 9; i++) {
+            // Spalte
+            for (int j = 1; j <= 9; j++) {
+
                 int[] literals = new int[9];
-                for (int feld = 1; feld <= 9; feld++) {
-                    literals[feld - 1] = 100 * zeile + 10 * spalte + feld;
+
+                // Jedes Feld hat nur eine Zahl
+                for (int k = 1; k <= 9; k++) {
+                    literals[k - 1] = 100 * i + 10 * j + k;
                 }
-                generateClouses(literals);
+                generateOnlyOnce(literals);
             }
-
         }
-
-        for (int spalte = 1; spalte <= 9; spalte++) {
-            for (int zeile = 1; zeile <= 9; zeile++) {
+        // Zeile
+        for (int i = 1; i <= 9; i++) {
+            // Jede Zahl nur einmal
+            for (int k = 1; k <= 9; k++) {
                 int[] literals = new int[9];
-                for (int feld = 1; feld <= 9; feld++) {
-                    literals[feld - 1] = 100 * spalte + 10 * zeile + feld;
+                // Spalte
+                for (int j = 1; j <= 9; j++) {
+                    literals[j - 1] = 100 * i + 10 * j + k;
                 }
-                generateClouses(literals);
+                generateOnlyOnce(literals);
             }
-
         }
-
-        for (int blockh = 0; blockh < 3; blockh++) {
-            for (int blockv = 0; blockv < 3; blockv++) {
-
-                for (int feld = 1; feld <= 9; feld++) {
+        // Spalte
+        for (int j = 1; j <= 9; j++) {
+            // Jede Zahl nur einmal
+            for (int k = 1; k <= 9; k++) {
+                int[] literals = new int[9];
+                // Zeile
+                for (int i = 1; i <= 9; i++) {
+                    literals[i - 1] = 100 * i + 10 * j + k;
+                }
+                generateOnlyOnce(literals);
+            }
+        }
+        // Bloecke in der Horizontalen
+        for (int i = 0; i < 3; i++) {
+            // Bloecke in der Vertikalen
+            for (int j = 0; j < 3; j++) {
+                // Zahl
+                for (int z = 1; z <= 9; z++) {
+                    // Durch den Block
                     int[] literals = new int[9];
-                    int counter = 0;
-                    for (int k = 3 * blockh + 1; k <= 3 * blockh + 3; k++) {
-                        for (int l = 3 * blockv + 1; l <= 3 * blockv + 3; l++) {
-                            literals[counter] = 100 * k + 10 * l + feld;
-                            counter++;
+                    int cnt = 0;
+                    for (int k = 3 * i + 1; k <= 3 * i + 3; k++) {
+                        // Durch anderen Block
+                        for (int l = 3 * j + 1; l <= 3 * j + 3; l++) {
+                            literals[cnt] = 100 * k + 10 * l + z;
+                            cnt++;
                         }
-
                     }
-                    generateClouses(literals);
+                    generateOnlyOnce(literals);
                 }
             }
         }
+        addSudokuClauses();
 
-        setup();
-        solve();
-
-
-    }
-
-    private static void solve() {
         IProblem problem = solver;
-
         try {
             if (problem.isSatisfiable()) {
-
-                print(problem.model());
-
-            } else
-                System.out.println("unsat");
+                int[] model = problem.model();
+                printSudoku(model);
+            } else {
+                System.out.println("Unsatisfiable");
+            }
         } catch (TimeoutException e) {
+            // TODO Auto-generated catch block
             e.printStackTrace();
         }
-
     }
 
-    private static void print(int[] model) {
-        int[] z = filtermodel(model);
-        for (int spalte = 0; spalte < 9; spalte++) {
-            for (int zeile = 0; zeile < 9; zeile++) {
-                System.out.print(z[spalte * 9 + zeile] % 10 + "|");
+    private static void printSudoku(int[] model) {
+        // TODO Auto-generated method stub
+        int[] matrix = filtermodel(model);
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
+                System.out.print(matrix[i * 9 + j] % 10 + " | ");
             }
-            System.out.println();
+            System.out.println("\n---------------");
         }
     }
 
     private static int[] filtermodel(int[] model) {
+        // TODO Auto-generated method stub
         int[] ret = new int[81];
-        int counter = 0;
+        int cnt = 0;
+        int lastfield = 0;
         for (int i = 0; i < model.length; i++) {
-            if (model[i] > 0) {
-                ret[counter]=model[i];
-                counter++;
+            if (cnt <= 81 && model[i] > 0) {
+                if (lastfield == model[i] / 10) {
+                    System.out.println("Doppelbelegung in " + lastfield);
+                } else {
+                    lastfield = model[i] / 10;
+                    ret[cnt] = model[i];
+                    cnt++;
+                }
+            }
+            if (cnt > 81 && model[i] > 0) {
+                System.out.println("Mehr als eine Zahl in einem Feld");
+                break;
             }
         }
         return ret;
     }
 
-    private static void setup() {
+    private static void addSudokuClauses() {
         try {
             solver.addClause(new VecInt(new int[]{112}));
             solver.addClause(new VecInt(new int[]{135}));
@@ -128,7 +157,19 @@ public class SudokuSolver3x3 {
         }
     }
 
-    private static void generateClouses(int[] literals) {
+    private static void generateOnlyOnce(int[] literals) {
+        // TODO Auto-generated method stub
+        if (literals.length != 9) {
+            System.out.println("Nicht 9 Literale");
+            return;
+        }
+        for (int i = 0; i < 9; i++) {
+            if (literals[i] / 100 == 0 || literals[i] / 10 < 10 || literals[i] < 100) {
+                System.out.println("Literale besitzen falsches Format");
+                return;
+            }
+
+        }
         for (int i = -1; i < 2; i += 2) {
             for (int j = -1; j < 2; j += 2) {
                 for (int k = -1; k < 2; k += 2) {
@@ -152,9 +193,11 @@ public class SudokuSolver3x3 {
                                             clause[7] = p * literals[7];
                                             clause[8] = q * literals[8];
 
+
                                             try {
                                                 solver.addClause(new VecInt(clause));
                                             } catch (ContradictionException e) {
+                                                // TODO Auto-generated catch block
                                                 e.printStackTrace();
                                             }
                                         }
