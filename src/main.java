@@ -42,6 +42,8 @@ public class main {
 
     public static void main(String[] args) {
 
+        long timer = System.nanoTime();
+
         printBoard(BoardtoSolve);
 
         ISolver solver = SolverFactory.newDefault();
@@ -59,7 +61,9 @@ public class main {
         } catch (TimeoutException e) {
             e.printStackTrace();
         }
+        System.out.println(System.nanoTime()-timer);
         System.exit(0);
+
     }
 
     private static void generateDefaultClauses(ISolver solver) {
@@ -68,8 +72,8 @@ public class main {
         int clauseToinsert2[];
 
         //Jede Zelle Zahlen von 1-9
-        for (int zeile = 1; zeile < 4; zeile++) {
-            for (int spalte = 1; spalte < 4; spalte++) {
+        for (int zeile = 1; zeile < 10; zeile++) {
+            for (int spalte = 1; spalte < 10; spalte++) {
                 clauseToinsert = new int[9];
                 for (int zahl = 1; zahl < 10; zahl++) {
                     clauseToinsert[zahl - 1] = zeile * 100 + spalte * 10 + zahl;
